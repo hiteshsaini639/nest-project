@@ -1,11 +1,18 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Logger } from '@nestjs/common';
 import { User } from './interface/user.interface';
 import * as bcrypt from 'bcrypt';
 import { UserService } from './user.service';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { UserCreatedEvent } from './events/user-created.event';
 
 @Controller('user')
 export class UserController {
-  constructor(private readonly usersService: UserService) {}
+  constructor(
+    private readonly usersService: UserService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
+
+  private readonly logger = new Logger();
 
   @Post('signup')
   async signup(
@@ -20,6 +27,26 @@ export class UserController {
       email,
       hashedPassword,
     );
+
+    this.eventEmitter.emit(
+      'user.created',
+      new UserCreatedEvent(result.name, result.email),
+    );
     return result;
+  }
+
+  @OnEvent('user.created')
+  welcomeNewUser(payload: UserCreatedEvent) {
+    this.logger.verbose('Welcoming new user...', payload.name);
+  }
+
+  @OnEvent('user.created')
+  SendingWelcomeEmail(payload: UserCreatedEvent) {
+    this.logger.verbose('Sending welcoming email...', payload.email);
+  }
+
+  @OnEvent('user.created')
+  SendingWelcomeGift(payload: UserCreatedEvent) {
+    this.logger.verbose('Sending Gift...');
   }
 }
